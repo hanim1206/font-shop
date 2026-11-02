@@ -118,6 +118,9 @@ node scripts/e2e.mjs                                            # Playwright 로
 
 ## 배포할 때
 
+`Dockerfile` 로 웹과 워터마크를 한 컨테이너에 담는다. `NEXT_PUBLIC_` 값은 빌드 때 코드에 들어가므로 `--build-arg` 로 넘기고, 서버 코드도 읽으므로 실행 환경변수에도 똑같이 넣는다.
+폰트 원본은 이미지에 넣지 않는다. 비공개 버킷 `masters` 에 `lib/catalog.ts` 의 `masterFile` 이름으로 올려 두면 처음 쓸 때 내려받는다.
+
 - Supabase 클라우드 프로젝트 생성 → `npx supabase link` → `npx supabase db push`. Auth 설정에서 **이메일 인증(Confirm email)을 켠다** (로컬은 꺼져 있음). Site URL·Redirect URL 에 배포 주소 + `/auth/callback`.
 - 워터마크는 Python 이 필요하다. Vercel 같은 서버리스에선 Python 을 같이 못 돌리므로, 웹은 Vercel 에 두고 `fontmark` 를 작은 워커(Fly.io, Railway 등)로 떼어 큐로 연결하거나, 둘 다 Python 이 깔린 컨테이너 하나(Render, Fly)에 올린다.
 - 동적 서브셋 IP 제한은 지금 메모리에 있다. 서버가 여러 대면 Redis(Upstash 등)로 옮긴다.

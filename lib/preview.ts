@@ -3,10 +3,9 @@
 // IP 별로 한 시간에 받을 수 있는 서로 다른 글자 수를 제한한다.
 import "server-only";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import subsetFont from "subset-font";
 import type { Product } from "./catalog";
-import { MASTERS_DIR } from "./fontmark";
+import { ensureMaster } from "./masters";
 
 export const MAX_CHARS_PER_REQUEST = 60; // 서로 다른 글자 기준
 export const MAX_GLYPHS_PER_HOUR = Number(process.env.PREVIEW_GLYPHS_PER_HOUR || 1500);
@@ -39,7 +38,7 @@ export async function previewWoff2(product: Product, chars: string[]): Promise<B
   if (hit) return hit;
   let m = masters.get(product.masterFile);
   if (!m) {
-    m = readFile(path.join(MASTERS_DIR, product.masterFile));
+    m = ensureMaster(product.masterFile).then((file) => readFile(file));
     masters.set(product.masterFile, m);
   }
   const out = await subsetFont(await m, chars.join(""), {
