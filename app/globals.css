@@ -38,6 +38,9 @@ input[type="range"] { width: 160px; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 .narrow { max-width: 440px; }
 .error { color: var(--danger); font-size: 14px; }
+.progress { height: 6px; margin: 16px 0 8px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress span { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width .3s ease-out; }
+@media (prefers-reduced-motion: reduce) { .progress span { transition: none; } }
 .ok { color: var(--ok); }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--soft); }
 .badge.PAID { background: #dcfce7; color: #166534; }

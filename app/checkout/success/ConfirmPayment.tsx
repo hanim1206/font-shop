@@ -3,10 +3,41 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+// 서버는 confirm 한 번으로 끝나 진행률을 주지 않는다. 실측(약 17초)에 맞춘 경과 시간 기반 표시다.
+const STAGES = [
+  { until: 3, label: "결제 승인 중" },
+  { until: 14, label: "주문번호 워터마크 넣는 중" },
+  { until: Infinity, label: "다운로드 링크 만드는 중" },
+];
+
+function ConfirmProgress({ finished, stopped }: { finished: boolean; stopped: boolean }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (finished || stopped) return;
+    const start = Date.now();
+    const timer = setInterval(() => setElapsed((Date.now() - start) / 1000), 200);
+    return () => clearInterval(timer);
+  }, [finished, stopped]);
+
+  // 응답이 오기 전까지는 90%에 다가가기만 한다
+  const value = finished ? 100 : Math.round(90 * (1 - Math.exp(-elapsed / 7)));
+  const label = STAGES.find((s) => elapsed < s.until)!.label;
+  return (
+    <>
+      <div className="progress" role="progressbar" aria-label="결제 처리 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-valuetext={label}>
+        <span style={{ width: `${value}%` }} />
+      </div>
+      <p className="muted">{label}… (20초 정도)</p>
+    </>
+  );
+}
+
 type Confirmed = { orderNo: number; orderName: string; amount: number; method?: string; receiptUrl?: string; customerEmail: string; fulfilled: boolean };
 
 export default function ConfirmPayment(props: { paymentKey: string; orderId: string; amount: string }) {
   const [state, setState] = useState<{ done?: Confirmed; error?: string }>({});
+  const [showResult, setShowResult] = useState(false);
   const started = useRef(false);
 
   useEffect(() => {
@@ -17,12 +48,20 @@ export default function ConfirmPayment(props: { paymentKey: string; orderId: str
         const body = await r.json();
         if (!r.ok) throw new Error(body.message ?? body.error);
         setState({ done: body.order });
+        setTimeout(() => setShowResult(true), 400); // 100% 를 잠깐 보여 준다
       })
       .catch((e) => setState({ error: (e as Error).message }));
   }, [props]);
 
-  if (state.error) return <p className="error">결제를 완료하지 못했습니다: {state.error}</p>;
-  if (!state.done) return <p className="muted">결제를 승인하고 구매자 전용 폰트 파일을 만드는 중입니다… (10초 정도)</p>;
+  if (state.error) {
+    return (
+      <>
+        <ConfirmProgress finished={false} stopped />
+        <p className="error">결제를 완료하지 못했습니다: {state.error}</p>
+      </>
+    );
+  }
+  if (!state.done || !showResult) return <ConfirmProgress finished={Boolean(state.done)} stopped={false} />;
   const o = state.done;
   return (
     <div className="card">
