@@ -1,0 +1,31 @@
+# Node · Next.js
+node_modules
+.next
+next-env.d.ts
+*.tsbuildinfo
+*.log
+
+# 비밀값
+.env*.local
+.env
+.env.cloudrun.yaml
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# 폰트 마스터는 절대 레포에 올리지 않는다
+fonts/masters/
+fonts/.src/
+worker/.fontmark-cache/
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# macOS · 에디터
+.DS_Store
+.vscode/
+.idea/
