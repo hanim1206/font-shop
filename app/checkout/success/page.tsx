@@ -6,7 +6,6 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   return (
     <div className="narrow">
-      <h1>결제 완료</h1>
       <ConfirmPayment paymentKey={sp.paymentKey ?? ""} orderId={sp.orderId ?? ""} amount={sp.amount ?? ""} />
     </div>
   );

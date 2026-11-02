@@ -56,27 +56,38 @@ export default function ConfirmPayment(props: { paymentKey: string; orderId: str
   if (state.error) {
     return (
       <>
+        <h1>결제를 완료하지 못했어요</h1>
         <ConfirmProgress finished={false} stopped />
         <p className="error">결제를 완료하지 못했습니다: {state.error}</p>
       </>
     );
   }
-  if (!state.done || !showResult) return <ConfirmProgress finished={Boolean(state.done)} stopped={false} />;
+  if (!state.done || !showResult) {
+    return (
+      <>
+        <h1>결제 처리 중</h1>
+        <ConfirmProgress finished={Boolean(state.done)} stopped={false} />
+      </>
+    );
+  }
   const o = state.done;
   return (
-    <div className="card">
-      <dl className="kv">
-        <dt>주문번호</dt><dd>#{o.orderNo}</dd>
-        <dt>상품</dt><dd>{o.orderName}</dd>
-        <dt>결제</dt><dd>{o.amount.toLocaleString("ko-KR")}원 · {o.method}</dd>
-      </dl>
-      {o.fulfilled ? (
-        <p><strong>{o.customerEmail}</strong> 로 다운로드 링크를 보냈습니다. 파일에는 주문번호 #{o.orderNo} 가 기록되어 있습니다.</p>
-      ) : (
-        <p className="error">파일 생성이 늦어지고 있습니다. 준비되면 메일로 보내드리고, 내 구매내역에도 표시됩니다.</p>
-      )}
-      <p><Link className="btn" href="/account">내 구매내역에서 바로 받기</Link></p>
-      {o.receiptUrl && <p className="muted"><a href={o.receiptUrl} target="_blank" rel="noreferrer">카드 영수증 보기</a></p>}
-    </div>
+    <>
+      <h1>결제 완료</h1>
+      <div className="card">
+        <dl className="kv">
+          <dt>주문번호</dt><dd>#{o.orderNo}</dd>
+          <dt>상품</dt><dd>{o.orderName}</dd>
+          <dt>결제</dt><dd>{o.amount.toLocaleString("ko-KR")}원 · {o.method}</dd>
+        </dl>
+        {o.fulfilled ? (
+          <p><strong>{o.customerEmail}</strong> 로 다운로드 링크를 보냈습니다. 파일에는 주문번호 #{o.orderNo} 가 기록되어 있습니다.</p>
+        ) : (
+          <p className="error">파일 생성이 늦어지고 있습니다. 준비되면 메일로 보내드리고, 내 구매내역에도 표시됩니다.</p>
+        )}
+        <p><Link className="btn" href="/account">내 구매내역에서 바로 받기</Link></p>
+        {o.receiptUrl && <p className="muted"><a href={o.receiptUrl} target="_blank" rel="noreferrer">카드 영수증 보기</a></p>}
+      </div>
+    </>
   );
 }
