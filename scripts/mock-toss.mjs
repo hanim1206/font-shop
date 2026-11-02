@@ -26,7 +26,7 @@ http
       return send(res, 200, p.payment);
     }
     const auth = Buffer.from((req.headers.authorization || "").replace(/^Basic /, ""), "base64").toString();
-    if (!auth.startsWith("test_gsk_") || !auth.endsWith(":")) {
+    if (!auth.startsWith("test_sk_") || !auth.endsWith(":")) {
       return send(res, 401, { code: "UNAUTHORIZED_KEY", message: "인증되지 않은 시크릿 키 혹은 시큐리티 키 입니다." });
     }
 

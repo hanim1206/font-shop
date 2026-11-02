@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { loadTossPayments, type TossPaymentsWidgets } from "@tosspayments/tosspayments-sdk";
+import { loadTossPayments, type TossPaymentsPayment } from "@tosspayments/tosspayments-sdk";
 
 type Props = { productSlug: string; amount: number; email: string; clientKey: string; customerKey: string };
 
@@ -12,9 +12,9 @@ export default function CheckoutForm({ productSlug, amount, email, clientKey, cu
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const widgetsRef = useRef<TossPaymentsWidgets | null>(null);
+  const paymentRef = useRef<TossPaymentsPayment | null>(null);
 
-  // 결제위젯은 한 번만 렌더링 (개발 모드 effect 두 번 실행 대비)
+  // 토스페이 결제창만 연다 (개발 모드 effect 두 번 실행 대비)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -22,25 +22,19 @@ export default function CheckoutForm({ productSlug, amount, email, clientKey, cu
         const toss = await loadTossPayments(clientKey);
         if (cancelled) return;
         // customerKey 는 추측하기 어려운 값이어야 한다 → Supabase user id(UUID)
-        const widgets = toss.widgets({ customerKey });
-        await widgets.setAmount({ currency: "KRW", value: amount });
-        await Promise.all([
-          widgets.renderPaymentMethods({ selector: "#payment-method", variantKey: "DEFAULT" }),
-          widgets.renderAgreement({ selector: "#agreement", variantKey: "AGREEMENT" }),
-        ]);
-        widgetsRef.current = widgets;
+        paymentRef.current = toss.payment({ customerKey });
         setReady(true);
       } catch (e) {
-        if (!cancelled) setError(`결제위젯을 불러오지 못했습니다: ${(e as Error).message}`);
+        if (!cancelled) setError(`결제 모듈을 불러오지 못했습니다: ${(e as Error).message}`);
       }
     })();
     return () => { cancelled = true; };
-  }, [clientKey, customerKey, amount]);
+  }, [clientKey, customerKey]);
 
   const canPay = ready && !busy && agreedWaiver && agreedEula && licensee.trim();
 
   async function pay() {
-    if (!widgetsRef.current) return;
+    if (!paymentRef.current) return;
     setBusy(true);
     setError("");
     try {
@@ -52,7 +46,10 @@ export default function CheckoutForm({ productSlug, amount, email, clientKey, cu
       const order = await res.json();
       if (!res.ok) throw new Error(order.error ?? "주문 생성 실패");
       if (order.amount !== amount) throw new Error("가격이 바뀌었습니다. 새로고침 후 다시 시도해 주세요.");
-      await widgetsRef.current.requestPayment({
+      await paymentRef.current.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: order.amount },
+        card: { flowMode: "DIRECT", easyPay: "TOSSPAY" },
         orderId: order.orderId,
         orderName: order.orderName,
         customerEmail: order.customerEmail,
@@ -73,8 +70,7 @@ export default function CheckoutForm({ productSlug, amount, email, clientKey, cu
       <input id="licensee" type="text" maxLength={60} value={licensee} onChange={(e) => setLicensee(e.target.value)} />
       <p className="muted">다운로드 링크는 가입한 이메일 <strong>{email}</strong> 로 보냅니다.</p>
 
-      <div id="payment-method" />
-      <div id="agreement" />
+      <p>결제수단: 토스페이 (테스트)</p>
 
       <div className="card">
         <label className="check">
@@ -88,8 +84,8 @@ export default function CheckoutForm({ productSlug, amount, email, clientKey, cu
       </div>
 
       {error && <p className="error">{error}</p>}
-      <button className="block" disabled={!canPay} onClick={pay}>{amount.toLocaleString("ko-KR")}원 결제하기</button>
-      <p className="muted">테스트 키로 동작합니다. 실제 돈은 나가지 않습니다.</p>
+      <button className="block" disabled={!canPay} onClick={pay}>토스페이로 {amount.toLocaleString("ko-KR")}원 결제하기</button>
+      <p className="muted">테스트 결제입니다. 실제 돈은 나가지 않습니다.</p>
     </>
   );
 }

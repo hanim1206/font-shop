@@ -7,7 +7,7 @@
 |---|---|---|
 | 목록 | `/` | 폰트 카드. 견본 문장도 동적 서브셋으로 그 글자만 받아 그림 |
 | 상세 | `/fonts/[slug]` | 입력한 문장을 실시간 미리보기 (산돌식 동적 서브셋) |
-| 결제 | `/checkout/[slug]` | 로그인 필요. 라이선스 받는 분 이름 + EULA·청약철회 배제 동의 + 토스 결제위젯 |
+| 결제 | `/checkout/[slug]` | 로그인 필요. 라이선스 받는 분 이름 + EULA·청약철회 배제 동의 + 토스페이 결제창(테스트) |
 | 결제완료 | `/checkout/success` | 서버 승인 → 워터마크 파일 생성 → 메일 발송 결과 |
 | 회원가입 / 로그인 | `/signup` `/login` | 이메일(필수) + 비밀번호 8자 이상 |
 | 내 구매내역 | `/account` | 내 주문, 재다운로드 |
@@ -21,7 +21,7 @@
 상세페이지 ── GET /api/preview?font=&text=  → 입력한 글자만 담은 woff2 (수 KB)
    │
 결제 페이지 (로그인) ── POST /api/orders     금액은 서버 카탈로그, 동의 시각 저장, 메일 = 가입 이메일
-   │  토스 결제위젯 requestPayment()
+   │  토스 결제창 requestPayment() (토스페이 직행)
    ▼
 /checkout/success ── POST /api/payments/confirm
    │  ① 본인 주문인지  ② 저장 금액 = amount  ③ READY→CONFIRMING 잠금  ④ 토스 승인 API  ⑤ 응답 재확인 → PAID
@@ -108,7 +108,7 @@ node scripts/e2e.mjs                                            # Playwright 로
 ✓ 결제 취소 웹훅 → 메일 링크 다운로드 차단, 위조 웹훅은 무시
 ```
 
-**아직 확인 못 한 것**: 개발 환경에서 토스(js/api.tosspayments.com)와 Resend 에 접속할 수 없어서 결제위젯 화면, 실제 승인 API, 실제 메일 발송은 돌려보지 못했다. 요청 형식은 문서·SDK 타입대로다. 로컬에서 `npm run dev` 로 한 번 결제해 보면 확인된다.
+**아직 확인 못 한 것**: Resend 실제 메일 발송. 토스페이 결제창 진입은 샌드박스에서 확인했고, 승인 API·워터마크 전달은 위젯 결제로 한 번 통과했다. 토스페이 결제창으로 끝까지 결제하는 흐름은 로컬에서 `npm run dev` 로 한 번 해 보면 확인된다.
 
 ## 실제 폰트로 바꾸기
 
