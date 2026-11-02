@@ -8,6 +8,7 @@ next-env.d.ts
 # 비밀값
 .env*.local
 .env
+.env.cloudrun.yaml
 
 # Python
 .venv/

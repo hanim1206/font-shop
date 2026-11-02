@@ -116,6 +116,18 @@ node scripts/e2e.mjs                                            # Playwright 로
 2. `lib/catalog.ts` 의 `fontId`·`masterFile`·`downloadName`·가격을 고친다.
 3. `fontId` 와 `FONTMARK_SECRET`, `worker/fontmark.py` 의 `PLAN_VERSION` 은 판매를 시작한 뒤 바꾸지 않는다. 바꾸면 이미 판 파일에서 주문번호를 못 읽는다.
 
+## Cloud Run 배포
+
+Docker 없이 Cloud Build 로 이미지를 만든다 (`cloudbuild.yaml`, `scripts/deploy-cloudrun.sh`). 서울 리전, 인스턴스 0~1개, 메모리 1Gi.
+
+1. Google Cloud 프로젝트와 결제 계정을 만들고 예산 알림을 건다.
+2. `gcloud auth login` 후 `gcloud config set project <프로젝트 ID>`.
+3. `scripts/deploy-cloudrun.sh` 로 첫 배포를 한다. 값은 `.env.local` 에서 읽는다.
+4. 끝에 나오는 안내대로 `SITE_URL` 을 배포 주소로 넣는다.
+5. Supabase Auth 의 Site URL 과 Redirect URL(`<주소>/auth/callback`)을 배포 주소로 바꾼다.
+
+`.env.cloudrun.yaml` 에는 시크릿이 들어가므로 커밋하지 않는다.
+
 ## 배포할 때
 
 `Dockerfile` 로 웹과 워터마크를 한 컨테이너에 담는다. `NEXT_PUBLIC_` 값은 빌드 때 코드에 들어가므로 `--build-arg` 로 넘기고, 서버 코드도 읽으므로 실행 환경변수에도 똑같이 넣는다.
