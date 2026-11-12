@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+.venv
+.env*
+!.env.example
+fonts
+worker/.fontmark-cache
+supabase/.temp
+supabase/.branches
+**/__pycache__
+*.log
+.DS_Store
