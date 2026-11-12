@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -17,7 +18,7 @@ export default async function AccountPage() {
   return (
     <>
       <h1>내 구매내역</h1>
-      <p className="muted">{auth.user.email}</p>
+      <p className="muted">{auth.user.email} · <Link href="/account/password">비밀번호 변경</Link></p>
       {!orders?.length && <p>아직 구매한 폰트가 없습니다.</p>}
       {orders?.map((o) => (
         <div className="card" key={o.order_no} style={{ marginBottom: 12 }}>
