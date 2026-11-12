@@ -26,7 +26,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=8080 HOSTNAME=0.0.0.0 \
   PYTHON=/opt/venv/bin/python FONTMARK_CACHE=/tmp/fontmark-cache
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY worker/fontmark.py ./worker/fontmark.py
+COPY worker/fontmark.py worker/bundle.py ./worker/
 RUN useradd --system --uid 1001 app && mkdir -p fonts/masters && chown -R app fonts
 USER app
 EXPOSE 8080

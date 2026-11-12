@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { findProduct, LICENSE_LABEL, PRODUCTS, won } from "@/lib/catalog";
+import { findProduct, LICENSE_TYPES, LICENSES, PRODUCTS, won } from "@/lib/catalog";
 import { MAX_CHARS_PER_REQUEST } from "@/lib/preview";
+import AddToCart from "./AddToCart";
 import Preview from "./Preview";
 
 export function generateStaticParams() {
@@ -23,16 +24,16 @@ export default async function FontPage({ params }: { params: Promise<{ slug: str
 
       <Preview slug={p.slug} initial={p.sample} maxChars={MAX_CHARS_PER_REQUEST} />
 
-      <div className="card">
-        <div className="row">
-          <div>
-            <strong>{LICENSE_LABEL}</strong>
-            <p className="muted" style={{ margin: "4px 0 0" }}>인쇄·출판, 영상, 웹 이미지, 굿즈 등 콘텐츠 제작 · {p.downloadName.split(".").pop()?.toUpperCase()} 파일</p>
-          </div>
-          <strong>{won(p.price)}</strong>
-        </div>
-        <p style={{ marginBottom: 0 }}><Link className="btn block" href={`/checkout/${p.slug}`}>구매하기</Link></p>
-      </div>
+      <AddToCart
+        slug={p.slug}
+        options={LICENSE_TYPES.map((t) => ({
+          type: t,
+          label: LICENSES[t].label,
+          desc: LICENSES[t].desc,
+          formats: (t === "desktop" ? [p.downloadName.split(".").pop()!] : LICENSES[t].formats).map((f) => f.toUpperCase()).join(" · "),
+          price: won(p.prices[t]),
+        }))}
+      />
       <p className="muted">구매한 파일에는 구매자 이름과 주문번호가 기록됩니다.</p>
     </>
   );

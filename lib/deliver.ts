@@ -11,9 +11,15 @@ export async function streamOrderFile(opts: {
   req: Request;
 }) {
   const db = supabaseAdmin();
-  let q = db.from("order_files").select().eq("order_no", opts.orderNo);
-  if (opts.fileId) q = q.eq("id", opts.fileId);
-  const { data: file } = await q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const pick = (format?: string) => {
+    let q = db.from("order_files").select().eq("order_no", opts.orderNo);
+    if (opts.fileId) q = q.eq("id", opts.fileId);
+    if (format) q = q.eq("format", format);
+    return q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  };
+  // 파일을 지정하지 않으면(메일 링크) 전체 묶음 zip, 묶음이 없는 예전 주문은 마지막 파일
+  let { data: file } = await pick(opts.fileId ? undefined : "zip");
+  if (!file && !opts.fileId) ({ data: file } = await pick());
   if (!file) return new NextResponse("file not found", { status: 404 });
 
   const { data: blob, error } = await db.storage.from("deliveries").download(file.storage_path);
@@ -30,7 +36,7 @@ export async function streamOrderFile(opts: {
 
   return new NextResponse(blob.stream(), {
     headers: {
-      "Content-Type": "application/octet-stream",
+      "Content-Type": file.format === "zip" ? "application/zip" : "application/octet-stream",
       "Content-Disposition": `attachment; filename="${file.filename}"`,
       "Content-Length": String(file.bytes),
       "Cache-Control": "no-store",

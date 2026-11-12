@@ -1,4 +1,4 @@
-// 실제 화면으로 도는 점검: 가입 → 상세 미리보기(동적 서브셋) → 주문 → 승인 → 워터마크 파일 → 메일 → 다운로드 → 취소.
+// 실제 화면으로 도는 점검: 가입 → 상세 미리보기(동적 서브셋) → 장바구니(라이선스 2종) → 주문 → 승인 → 워터마크 파일 → 메일 → 다운로드 → 취소.
 // 토스 서버 대신 scripts/mock-toss.mjs 를 쓴다 (앱을 TOSS_API_BASE=http://localhost:4010 으로 띄울 것).
 // 메일은 로컬 Supabase 의 Mailpit(MAIL_PROVIDER=mailpit)에서 읽는다.
 //   npm run db:start && npm run build
@@ -42,8 +42,10 @@ const api = (page, url, body) =>
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     return { status: r.status, body: await r.json().catch(() => null) };
   }, [url, body]);
+// 기본 주문: Regular Desktop + Bold Web (도메인 필요)
+const ITEMS = [{ slug: "dummy-gothic-regular", license: "desktop" }, { slug: "dummy-gothic-bold", license: "web" }];
 const order = (page, extra = {}) =>
-  api(page, "/api/orders", { productSlug: "dummy-gothic-regular", licenseeName: "홍길동 스튜디오", agreedWithdrawalWaiver: true, agreedEula: true, ...extra });
+  api(page, "/api/orders", { items: ITEMS, licenseeName: "홍길동 스튜디오", licenseeType: "company", bizNo: "123-45-67890", webDomain: "https://www.Hong-Studio.kr/about", agreedWithdrawalWaiver: true, agreedEula: true, ...extra });
 
 // 1. 가입
 const buyerEmail = `buyer-${Date.now()}@example.com`;
@@ -53,7 +55,7 @@ step("이메일+비밀번호 회원가입 → 로그인 상태");
 
 // 비로그인은 결제 페이지 진입 불가
 const anon = await (await browser.newContext()).newPage();
-await anon.goto(`${APP}/checkout/dummy-gothic-regular`);
+await anon.goto(`${APP}/checkout`);
 assert.match(anon.url(), /\/login\?next=/);
 step("비로그인 사용자는 결제 페이지 → 로그인으로");
 
@@ -76,15 +78,47 @@ r = await fetch(`${APP}/api/preview?font=dummy-gothic-regular&text=abc`, { heade
 assert.equal(r.status, 403);
 step("미리보기 제한: 한 번에 60자 초과 413, 다른 사이트에서 가져다 쓰기 403");
 
-// 3. 결제 페이지 + 주문 생성 검증
-await page.goto(`${APP}/checkout/dummy-gothic-regular`);
+// 3. 장바구니: 상세에서 라이선스 골라 담기 → 장바구니 → 결제 페이지
+await page.goto(`${APP}/fonts/dummy-gothic-regular`);
+await page.getByRole("button", { name: "장바구니 담기" }).click();
+await page.getByRole("button", { name: "장바구니에 있음" }).waitFor();
+await page.check('input[name="license"][value="web"]');
+await page.getByRole("button", { name: "장바구니 담기" }).click();
+await page.goto(`${APP}/fonts/dummy-gothic-bold`);
+await page.getByRole("button", { name: "장바구니 담기" }).click();
+await page.getByRole("link", { name: "장바구니 (3)" }).waitFor();
+await page.goto(`${APP}/cart`);
+assert.equal(await page.locator("ul.cart-lines li").count(), 3);
+assert.ok(await page.getByText("126,000원").isVisible(), "33,000 + 55,000 + 38,000");
+await page.getByRole("button", { name: /Regular Web 빼기/ }).click();
+assert.equal(await page.locator("ul.cart-lines li").count(), 2);
+assert.ok(await page.getByText("71,000원").isVisible());
+step("상세에서 Desktop·Web 골라 담기 → 장바구니 3개 126,000원 → 하나 빼면 71,000원");
+
+await page.getByRole("link", { name: "결제하기" }).click();
+await page.waitForURL(`${APP}/checkout`);
 assert.ok(await page.getByText(buyerEmail).isVisible());
+assert.equal(await page.locator("#domain").count(), 0, "Web 항목이 없으면 도메인 칸 없음");
+await page.check('input[name="holder"] >> nth=1');
+assert.equal(await page.locator("#bizNo").count(), 1);
+assert.ok(await page.getByRole("button", { name: /71,000원 결제하기/ }).isDisabled());
+step("결제 페이지: 장바구니 합계, 회사·단체 고르면 사업자번호 칸, Web 없으면 도메인 칸 없음");
+
 r = await order(page, { agreedWithdrawalWaiver: false });
 assert.equal(r.body.error, "CONSENT_REQUIRED");
-r = await order(page, { amount: 100 });
-assert.equal(r.body.amount, 33000);
+r = await order(page, { webDomain: "" });
+assert.equal(r.body.error, "INVALID_DOMAIN");
+r = await order(page, { items: [...ITEMS, ITEMS[0]] });
+assert.equal(r.body.error, "DUPLICATE_ITEM");
+r = await order(page, { items: [{ slug: "dummy-gothic-regular", license: "app" }] });
+assert.equal(r.body.error, "INVALID_ITEM");
+r = await order(page, { items: [] });
+assert.equal(r.body.error, "EMPTY_CART");
+r = await order(page, { amount: 100, items: ITEMS.map((i) => ({ ...i, price: 1 })) });
+assert.equal(r.body.amount, 96000);
 assert.equal(r.body.customerEmail, buyerEmail);
-step("주문: 동의 없으면 거절, 클라이언트 금액 무시하고 서버 가격 33,000원, 메일은 가입 이메일");
+assert.equal(r.body.orderName, "하님 더미고딕 Regular · Desktop 외 1건");
+step("주문 검증: 동의·도메인·중복·잘못된 라이선스·빈 장바구니 거절, 클라이언트 금액 무시하고 서버 합계 96,000원");
 
 // 4. 금액 위조
 const tampered = r.body;
@@ -97,9 +131,10 @@ const o = (await order(page)).body;
 const key = `tgen_${Date.now()}`;
 const successUrl = `${APP}/checkout/success?paymentKey=${key}&orderId=${o.orderId}&amount=${o.amount}`;
 await page.goto(successUrl);
-await page.getByText("다운로드 링크를 보냈습니다").waitFor({ timeout: 120_000 });
+await page.getByText("다운로드 링크를 보냈습니다").waitFor({ timeout: 180_000 });
 const orderNo = Number((await page.locator("dd").first().textContent()).replace(/\D/g, ""));
-step(`정상 결제 → PAID → 주문 #${orderNo} 워터마크 파일 생성`);
+assert.equal(await page.evaluate(() => localStorage.getItem("fontshop-cart")), "[]", "결제 완료 후 장바구니 비움");
+step(`정상 결제 → PAID → 주문 #${orderNo} 항목 2개 워터마크 파일 생성, 장바구니 비움`);
 
 await page.goto(successUrl);
 await page.getByText("다운로드 링크를 보냈습니다").waitFor({ timeout: 60_000 });
@@ -119,16 +154,28 @@ step("구매자 이메일로 다운로드 링크 1통 (파일 첨부 없음)");
 await page.goto(link);
 assert.ok(await page.getByText("5 / 5").isVisible(), "열기만 해서는 횟수 안 줄어듦");
 const [dl] = await Promise.all([page.waitForEvent("download"), page.click("button.block")]);
-assert.equal(dl.suggestedFilename(), "HanimDummyGothic-Regular.ttf");
-const file = path.join(tmp, "bought.ttf");
-await dl.saveAs(file);
-const master = "fonts/masters/HanimDummyGothic-Regular-1.000.ttf";
-const extract = (f) =>
-  JSON.parse(execFileSync("python3", ["worker/fontmark.py", "extract", "--master", master, "--suspect", f, "--font-id", "HanimDummyGothic-Regular-1.000"], { env: { ...process.env, FONTMARK_SECRET: env.FONTMARK_SECRET } }).toString());
+assert.equal(dl.suggestedFilename(), `FontShop-order-${orderNo}.zip`);
+const zip = path.join(tmp, "bought.zip");
+await dl.saveAs(zip);
+const unzipped = path.join(tmp, "bought");
+execFileSync("python3", ["-c", "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])", zip, unzipped]);
+const names = execFileSync("python3", ["-c", "import sys,zipfile; print('\\n'.join(sorted(zipfile.ZipFile(sys.argv[1]).namelist())))", zip]).toString().trim().split("\n");
+assert.deepEqual(names, ["Desktop/HanimDummyGothic-Regular.ttf", "LICENSE.txt", "Web/HanimDummyGothic-Bold-Web.woff", "Web/HanimDummyGothic-Bold-Web.woff2"]);
+const cert = readFileSync(path.join(unzipped, "LICENSE.txt"), "utf8");
+assert.match(cert, /홍길동 스튜디오 \(회사·단체, 사업자등록번호 123-45-67890\)/);
+assert.match(cert, /도메인: hong-studio\.kr/);
+step("메일 링크 = zip 한 개: Desktop TTF + Web WOFF·WOFF2 + 라이선스 증서(회사·사업자번호·도메인)");
+
+const extract = (f, weight = "Regular") =>
+  JSON.parse(execFileSync("python3", ["worker/fontmark.py", "extract", "--master", `fonts/masters/HanimDummyGothic-${weight}-1.000.ttf`, "--suspect", f, "--font-id", `HanimDummyGothic-${weight}-1.000`], { env: { ...process.env, FONTMARK_SECRET: env.FONTMARK_SECRET } }).toString());
+const file = path.join(unzipped, "Desktop/HanimDummyGothic-Regular.ttf");
 const ex = extract(file);
 assert.equal(ex.outline_layer.order_id, orderNo);
-assert.match(ex.name_layer.nameID_13, /Licensed to 홍길동 스튜디오/);
-step(`받은 파일에서 주문번호 #${ex.outline_layer.order_id} 복원 (안 보이는 층), name 에 구매자 이름`);
+assert.match(ex.name_layer.nameID_13, /Licensed to 홍길동 스튜디오 · Desktop/);
+const exWeb = extract(path.join(unzipped, "Web/HanimDummyGothic-Bold-Web.woff2"), "Bold");
+assert.equal(exWeb.outline_layer.order_id, orderNo);
+assert.match(exWeb.name_layer.nameID_13, /Licensed to 홍길동 스튜디오 for hong-studio\.kr · Web/);
+step(`Desktop TTF·Web WOFF2 둘 다 주문번호 #${orderNo} 복원, name 에 라이선스 종류·도메인`);
 
 // 이름 지우고 서브셋 + WOFF2 로 바꿔도 남는지
 const attacked = path.join(tmp, "attacked.woff2");
@@ -146,9 +193,10 @@ step("다운로드 1회 차감 (5회 중 4회 남음)");
 
 // 7. 내 구매내역 재다운로드, 남의 파일은 못 받음
 await page.goto(`${APP}/account`);
+assert.equal(await page.locator('form[action^="/api/account/files/"]').count(), 4, "zip + ttf + woff + woff2");
 const [dl2] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /HanimDummyGothic-Regular\.ttf 받기/ }).click()]);
 assert.equal(dl2.suggestedFilename(), "HanimDummyGothic-Regular.ttf");
-const fileAction = await page.locator('form[action^="/api/account/files/"]').getAttribute("action");
+const fileAction = await page.locator('form[action^="/api/account/files/"]', { hasText: "HanimDummyGothic-Regular.ttf" }).getAttribute("action");
 step("내 구매내역에서 재다운로드");
 
 const other = await signup(`other-${Date.now()}@example.com`);
@@ -176,9 +224,11 @@ if (new URL(ap.url()).pathname !== "/admin/orders") {
 }
 await ap.locator("td", { hasText: `#${orderNo}` }).first().waitFor();
 await ap.locator("td", { hasText: buyerEmail }).first().waitFor();
+await ap.locator("td", { hasText: "Web 도메인: hong-studio.kr" }).first().waitFor();
+await ap.locator("td", { hasText: "사업자 123-45-67890" }).first().waitFor();
 r = await (await other.page.goto(`${APP}/admin/orders`)).status();
 assert.equal(r, 404);
-step("관리자 주문 목록에 주문·구매자·파일 해시·메일·다운로드 기록, 일반 회원은 404");
+step("관리자 주문 목록에 항목·라이선스·도메인·사업자번호·파일 해시·메일·다운로드 기록, 일반 회원은 404");
 
 // 9. 취소 웹훅 → 다운로드 막힘
 await fetch(`${MOCK}/__mock/cancel/${key}`, { method: "POST" });

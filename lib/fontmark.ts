@@ -23,8 +23,13 @@ export async function embedWatermark(input: {
   orderNo: number;
   orderId: string;
   licensee: string;
-  outPath: string;
   site: string;
+  /** 한 번 심고 여러 포맷으로 저장: outDir/basename.{otf|ttf|woff|woff2} */
+  outDir: string;
+  basename: string;
+  formats: ("otf" | "woff" | "woff2")[];
+  licenseType?: "desktop" | "web";
+  domain?: string | null;
 }): Promise<EmbedResult> {
   const master = await ensureMaster(input.masterFile);
   const { stdout } = await run(
@@ -33,16 +38,29 @@ export async function embedWatermark(input: {
       path.join(ROOT, "worker", "fontmark.py"),
       "embed",
       "--master", master,
-      "--out", input.outPath,
+      "--out-dir", input.outDir,
+      "--basename", input.basename,
+      "--formats", input.formats.join(","),
       "--font-id", input.fontId,
       "--order-id", String(input.orderNo),
       "--license-id", input.orderId,
       "--licensee", input.licensee,
       "--site", input.site,
+      ...(input.licenseType ? ["--license-type", input.licenseType] : []),
+      ...(input.domain ? ["--domain", input.domain] : []),
     ],
     { env: { ...process.env, FONTMARK_SECRET: required("FONTMARK_SECRET") }, timeout: 180_000, maxBuffer: 4 << 20 },
   );
   return JSON.parse(stdout) as EmbedResult;
+}
+
+/** 여러 파일을 zip 하나로 묶는다 (메일 링크 한 번에 전부 받기). files: [디스크 경로, zip 안 이름] */
+export async function makeZip(outPath: string, files: [string, string][], extra: Record<string, string>) {
+  await run(
+    process.env.PYTHON || "python3",
+    [path.join(ROOT, "worker", "bundle.py"), outPath, JSON.stringify({ files, extra })],
+    { timeout: 60_000 },
+  );
 }
 
 export async function extractWatermark(masterFile: string, fontId: string, suspectPath: string) {

@@ -17,7 +17,7 @@ export default function Home() {
           <Link key={p.slug} href={`/fonts/${p.slug}`} className="card font-card">
             <div className="row">
               <strong>{p.family} {p.style}</strong>
-              <span className="muted">{won(p.price)}</span>
+              <span className="muted">{won(Math.min(...Object.values(p.prices)))}부터</span>
             </div>
             <p className="specimen" style={{ fontFamily: `"pv-${p.slug}", sans-serif` }}>{p.sample}</p>
           </Link>

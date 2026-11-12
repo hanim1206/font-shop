@@ -5,17 +5,63 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { findProduct } from "./catalog";
+import { findProduct, LICENSES } from "./catalog";
 import { siteUrl } from "./env";
-import { embedWatermark } from "./fontmark";
+import { embedWatermark, makeZip } from "./fontmark";
 import { deliveryMail, sendMail } from "./mail";
-import { logEvent, type Order } from "./orders";
+import { getOrderItems, logEvent, type Order, type OrderItem } from "./orders";
 import { supabaseAdmin } from "./supabase/admin";
 
 export const LINK_DAYS = 7;
 export const LINK_MAX_USES = 5;
 
 export const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
+const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex");
+
+const CONTENT_TYPES: Record<string, string> = {
+  otf: "font/otf", ttf: "font/ttf", woff: "font/woff", woff2: "font/woff2", zip: "application/zip",
+};
+
+// 저장 경로는 추측 불가능한 랜덤. 파일명에 개인정보를 넣지 않는다.
+async function storeFile(orderNo: number, itemId: string | null, src: string, filename: string, format: string, hash: string, bytes: number) {
+  const db = supabaseAdmin();
+  const storagePath = `${orderNo}/${randomBytes(12).toString("hex")}.${format}`;
+  const up = await db.storage.from("deliveries").upload(storagePath, await readFile(src), {
+    contentType: CONTENT_TYPES[format] ?? "application/octet-stream",
+    upsert: false,
+  });
+  if (up.error) throw new Error(`storage upload: ${up.error.message}`);
+  const { error } = await db.from("order_files").insert({
+    order_no: orderNo, item_id: itemId, storage_path: storagePath, filename, format, sha256: hash, bytes,
+  });
+  if (error) throw new Error(`order_files: ${error.message}`);
+}
+
+async function clearOrderFiles(orderNo: number) {
+  const db = supabaseAdmin();
+  const { data } = await db.from("order_files").select("id, storage_path").eq("order_no", orderNo);
+  if (!data?.length) return;
+  await db.storage.from("deliveries").remove(data.map((f) => f.storage_path));
+  await db.from("order_files").delete().eq("order_no", orderNo);
+}
+
+function licenseText(order: Order, items: OrderItem[]): string {
+  const holder = order.licensee_type === "company" ? `${order.licensee_name} (회사·단체${order.biz_no ? `, 사업자등록번호 ${order.biz_no}` : ""})` : order.licensee_name;
+  return [
+    "폰트 라이선스 증서",
+    "",
+    `라이선스 사용자: ${holder}`,
+    `주문: #${order.order_no} (${order.order_id})`,
+    `발급일: ${new Date(order.approved_at ?? Date.now()).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}`,
+    "",
+    "항목",
+    ...items.map((i) => `- ${i.item_name}: ${LICENSES[i.license_type].desc}${i.license_type === "web" ? ` (도메인: ${order.web_domain})` : ""}`),
+    "",
+    "폰트 파일에는 라이선스 사용자와 주문번호가 기록되어 있습니다. 파일을 다른 사람에게 넘기거나 공개된 곳에 올릴 수 없습니다.",
+    `라이선스 확인: ${siteUrl()}/verify/${order.order_id}`,
+    "",
+  ].join("\n");
+}
 
 export async function fulfillOrder(order: Order): Promise<"done" | "already" | "failed"> {
   const db = supabaseAdmin();
@@ -29,41 +75,46 @@ export async function fulfillOrder(order: Order): Promise<"done" | "already" | "
     .maybeSingle();
   if (!locked) return "already";
 
-  const product = findProduct(order.product_slug);
   const tmp = await mkdtemp(path.join(os.tmpdir(), "fontshop-"));
   try {
-    if (!product) throw new Error(`unknown product ${order.product_slug}`);
-    const ext = path.extname(product.masterFile);
-    const out = path.join(tmp, `out${ext}`);
-    const result = await embedWatermark({
-      masterFile: product.masterFile,
-      fontId: product.fontId,
-      orderNo: order.order_no,
-      orderId: order.order_id,
-      licensee: order.licensee_name,
-      outPath: out,
-      site: siteUrl(),
-    });
-    const file = result.files[0];
-    const bytes = await readFile(out);
+    const items = await getOrderItems(order.order_no);
+    if (!items.length) throw new Error("order has no items");
+    // 이미 일부 만들어 둔 파일이 있으면(지난 시도가 중간에 실패) 지우고 처음부터 다시 만든다
+    await clearOrderFiles(order.order_no);
 
-    // 저장 경로는 추측 불가능한 랜덤. 파일명에 개인정보를 넣지 않는다.
-    const storagePath = `${order.order_no}/${randomBytes(12).toString("hex")}${ext}`;
-    const up = await db.storage.from("deliveries").upload(storagePath, bytes, {
-      contentType: ext === ".otf" ? "font/otf" : "font/ttf",
-      upsert: false,
-    });
-    if (up.error) throw new Error(`storage upload: ${up.error.message}`);
-    const { error: fe } = await db.from("order_files").insert({
-      order_no: order.order_no,
-      storage_path: storagePath,
-      filename: product.downloadName,
-      format: file.format,
-      sha256: file.sha256,
-      bytes: file.bytes,
-    });
-    if (fe) throw new Error(`order_files: ${fe.message}`);
-    await logEvent(order.order_no, "watermarked", `order #${order.order_no} · ${result.points_moved} points · ${result.seconds}s`);
+    const bundle: [string, string][] = [];
+    for (const item of items) {
+      const product = findProduct(item.product_slug);
+      if (!product) throw new Error(`unknown product ${item.product_slug}`);
+      const base = product.downloadName.replace(/\.[^.]+$/, "");
+      const isWeb = item.license_type === "web";
+      const dir = path.join(tmp, item.id);
+      const result = await embedWatermark({
+        masterFile: product.masterFile,
+        fontId: item.font_id,
+        orderNo: order.order_no, // 안 보이는 층에는 주문번호 하나를 모든 파일에 넣는다
+        orderId: order.order_id,
+        licensee: order.licensee_name,
+        site: siteUrl(),
+        outDir: dir,
+        basename: isWeb ? `${base}-Web` : base,
+        formats: isWeb ? ["woff", "woff2"] : ["otf"], // otf 는 "마스터와 같은 형식(otf/ttf)" 이라는 뜻
+        licenseType: item.license_type,
+        domain: isWeb ? order.web_domain : null,
+      });
+      for (const f of result.files) {
+        const filename = path.basename(f.path);
+        await storeFile(order.order_no, item.id, f.path, filename, f.format, f.sha256, f.bytes);
+        bundle.push([f.path, `${LICENSES[item.license_type].label}/${filename}`]);
+      }
+      await logEvent(order.order_no, "watermarked", `${item.item_name} · order #${order.order_no} · ${result.points_moved} points · ${result.seconds}s`);
+    }
+
+    // 메일 링크로 한 번에 받는 묶음 (라이선스 증서 포함)
+    const zipPath = path.join(tmp, "bundle.zip");
+    await makeZip(zipPath, bundle, { "LICENSE.txt": licenseText(order, items) });
+    const zipBytes = await readFile(zipPath);
+    await storeFile(order.order_no, null, zipPath, `FontShop-order-${order.order_no}.zip`, "zip", sha256(zipBytes), zipBytes.length);
 
     const { token, expiresAt } = await createDownloadLink(order.order_no);
     await db.from("orders").update({ fulfilled_at: new Date().toISOString() }).eq("order_no", order.order_no);

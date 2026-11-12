@@ -5,7 +5,7 @@ import { fulfillOrder } from "@/lib/fulfill";
 import { getOrder, transition } from "@/lib/orders";
 import { getPayment } from "@/lib/toss";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);

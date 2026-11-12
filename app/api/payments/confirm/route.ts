@@ -6,7 +6,7 @@ import { getOrder, transition, type Order } from "@/lib/orders";
 import { currentUser } from "@/lib/supabase/server";
 import { confirmPayment } from "@/lib/toss";
 
-export const maxDuration = 120; // 워터마크 생성까지 기다린다
+export const maxDuration = 300; // 워터마크 생성까지 기다린다 (항목마다 수 초)
 
 export async function POST(req: Request) {
   const user = await currentUser();

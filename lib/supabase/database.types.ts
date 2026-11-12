@@ -117,18 +117,44 @@ isOneToOne: false
                   ]
                 },"order_files": {
                   Row: {
-                    "bytes": number,"created_at": string,"filename": string,"format": string,"id": string,"order_no": number,"sha256": string,"storage_path": string
+                    "bytes": number,"created_at": string,"filename": string,"format": string,"id": string,"item_id": string | null,"order_no": number,"sha256": string,"storage_path": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "bytes": number,"created_at"?: string,"filename": string,"format": string,"id"?: string,"order_no": number,"sha256": string,"storage_path": string
+                    "bytes": number,"created_at"?: string,"filename": string,"format": string,"id"?: string,"item_id"?: string | null,"order_no": number,"sha256": string,"storage_path": string
                   }
                   Update: {
-                    "bytes"?: number,"created_at"?: string,"filename"?: string,"format"?: string,"id"?: string,"order_no"?: number,"sha256"?: string,"storage_path"?: string
+                    "bytes"?: number,"created_at"?: string,"filename"?: string,"format"?: string,"id"?: string,"item_id"?: string | null,"order_no"?: number,"sha256"?: string,"storage_path"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "order_files_item_id_fkey"
+      columns: ["item_id"]
+isOneToOne: false
+      referencedRelation: "order_items"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "order_files_order_no_fkey"
+      columns: ["order_no"]
+isOneToOne: false
+      referencedRelation: "orders"
+      referencedColumns: ["order_no"]
+    }
+                  ]
+                },"order_items": {
+                  Row: {
+                    "created_at": string,"font_id": string,"id": string,"item_name": string,"license_type": string,"order_no": number,"product_slug": string,"unit_price": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"font_id": string,"id"?: string,"item_name": string,"license_type": string,"order_no": number,"product_slug": string,"unit_price": number
+                  }
+                  Update: {
+                    "created_at"?: string,"font_id"?: string,"id"?: string,"item_name"?: string,"license_type"?: string,"order_no"?: number,"product_slug"?: string,"unit_price"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "order_items_order_no_fkey"
       columns: ["order_no"]
 isOneToOne: false
       referencedRelation: "orders"
@@ -137,14 +163,14 @@ isOneToOne: false
                   ]
                 },"orders": {
                   Row: {
-                    "amount": number,"approved_at": string | null,"created_at": string,"customer_email": string,"eula_agreed_at": string,"failure": Json | null,"font_id": string,"fulfill_started_at": string | null,"fulfilled_at": string | null,"licensee_name": string,"method": string | null,"order_id": string,"order_name": string,"order_no": number,"payment_key": string | null,"product_slug": string,"receipt_url": string | null,"status": Database["public"]['Enums']["order_status"],"updated_at": string,"user_id": string,"withdrawal_waiver_agreed_at": string
+                    "amount": number,"approved_at": string | null,"biz_no": string | null,"created_at": string,"customer_email": string,"eula_agreed_at": string,"failure": Json | null,"font_id": string | null,"fulfill_started_at": string | null,"fulfilled_at": string | null,"licensee_name": string,"licensee_type": string,"method": string | null,"order_id": string,"order_name": string,"order_no": number,"payment_key": string | null,"product_slug": string | null,"receipt_url": string | null,"status": Database["public"]['Enums']["order_status"],"updated_at": string,"user_id": string,"web_domain": string | null,"withdrawal_waiver_agreed_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"approved_at"?: string | null,"created_at"?: string,"customer_email": string,"eula_agreed_at": string,"failure"?: Json | null,"font_id": string,"fulfill_started_at"?: string | null,"fulfilled_at"?: string | null,"licensee_name": string,"method"?: string | null,"order_id": string,"order_name": string,"order_no"?: never,"payment_key"?: string | null,"product_slug": string,"receipt_url"?: string | null,"status"?: Database["public"]['Enums']["order_status"],"updated_at"?: string,"user_id": string,"withdrawal_waiver_agreed_at": string
+                    "amount": number,"approved_at"?: string | null,"biz_no"?: string | null,"created_at"?: string,"customer_email": string,"eula_agreed_at": string,"failure"?: Json | null,"font_id"?: string | null,"fulfill_started_at"?: string | null,"fulfilled_at"?: string | null,"licensee_name": string,"licensee_type"?: string,"method"?: string | null,"order_id": string,"order_name": string,"order_no"?: never,"payment_key"?: string | null,"product_slug"?: string | null,"receipt_url"?: string | null,"status"?: Database["public"]['Enums']["order_status"],"updated_at"?: string,"user_id": string,"web_domain"?: string | null,"withdrawal_waiver_agreed_at": string
                   }
                   Update: {
-                    "amount"?: number,"approved_at"?: string | null,"created_at"?: string,"customer_email"?: string,"eula_agreed_at"?: string,"failure"?: Json | null,"font_id"?: string,"fulfill_started_at"?: string | null,"fulfilled_at"?: string | null,"licensee_name"?: string,"method"?: string | null,"order_id"?: string,"order_name"?: string,"order_no"?: never,"payment_key"?: string | null,"product_slug"?: string,"receipt_url"?: string | null,"status"?: Database["public"]['Enums']["order_status"],"updated_at"?: string,"user_id"?: string,"withdrawal_waiver_agreed_at"?: string
+                    "amount"?: number,"approved_at"?: string | null,"biz_no"?: string | null,"created_at"?: string,"customer_email"?: string,"eula_agreed_at"?: string,"failure"?: Json | null,"font_id"?: string | null,"fulfill_started_at"?: string | null,"fulfilled_at"?: string | null,"licensee_name"?: string,"licensee_type"?: string,"method"?: string | null,"order_id"?: string,"order_name"?: string,"order_no"?: never,"payment_key"?: string | null,"product_slug"?: string | null,"receipt_url"?: string | null,"status"?: Database["public"]['Enums']["order_status"],"updated_at"?: string,"user_id"?: string,"web_domain"?: string | null,"withdrawal_waiver_agreed_at"?: string
                   }
                   Relationships: [
                     
