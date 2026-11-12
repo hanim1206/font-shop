@@ -58,3 +58,19 @@ table.admin td:nth-child(3) { min-width: 180px; }
 table.admin td:nth-child(2) { min-width: 200px; }
 table.admin td:last-child { min-width: 220px; }
 .wide { max-width: 1280px; }
+/* 라이선스 선택 · 장바구니 */
+fieldset.licenses { border: 0; padding: 0; margin: 0; }
+fieldset.licenses legend { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.license-option { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 0 0 8px; font-weight: 400; cursor: pointer; }
+.license-option.on { border-color: var(--fg); }
+.license-option input { margin-top: 4px; }
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+.actions > * { flex: 1; }
+.actions button.ghost { padding: 13px 18px; font-size: 15px; }
+ul.cart-lines { list-style: none; margin: 0; padding: 0; }
+ul.cart-lines li { padding: 10px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.cart-total { padding-top: 12px; }
+.seg { display: flex; gap: 16px; }
+.seg .check { margin: 4px 0; }
+.files { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.files form { margin: 0; }

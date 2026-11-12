@@ -50,7 +50,7 @@ gcloud builds submit --config cloudbuild.yaml --substitutions "^|^_IMAGE=$IMAGE|
 
 # 미리보기 글자 제한이 서버 메모리에 있어 인스턴스는 하나만 둔다
 gcloud run deploy "$SERVICE" --image "$IMAGE" --region "$REGION" \
-  --port 8080 --memory 1Gi --cpu 1 --timeout 120 \
+  --port 8080 --memory 1Gi --cpu 1 --timeout 300 \
   --min-instances 0 --max-instances 1 \
   --allow-unauthenticated --env-vars-file "$ENV_FILE"
 

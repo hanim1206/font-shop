@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { clearCart } from "@/lib/cart-client";
 
 // 서버는 confirm 한 번으로 끝나 진행률을 주지 않는다. 실측(약 17초)에 맞춘 경과 시간 기반 표시다.
 const STAGES = [
@@ -28,7 +29,7 @@ function ConfirmProgress({ finished, stopped }: { finished: boolean; stopped: bo
       <div className="progress" role="progressbar" aria-label="결제 처리 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-valuetext={label}>
         <span style={{ width: `${value}%` }} />
       </div>
-      <p className="muted">{label}… (20초 정도)</p>
+      <p className="muted">{label}… (담은 개수에 따라 20초~1분)</p>
     </>
   );
 }
@@ -47,6 +48,7 @@ export default function ConfirmPayment(props: { paymentKey: string; orderId: str
       .then(async (r) => {
         const body = await r.json();
         if (!r.ok) throw new Error(body.message ?? body.error);
+        clearCart(); // 결제가 끝났으니 장바구니를 비운다
         setState({ done: body.order });
         setTimeout(() => setShowResult(true), 400); // 100% 를 잠깐 보여 준다
       })

@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/env";
 import { signOut } from "./auth-actions";
 import { SELLER } from "@/lib/catalog";
+import CartLink from "./CartLink";
 import "./globals.css";
 
 export const metadata = { title: "Font Shop (테스트)", description: "개인 폰트 판매 테스트 사이트" };
@@ -18,6 +19,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Link href="/" className="logo">Font Shop</Link>
             <nav>
               <Link href="/">폰트</Link>
+              <CartLink />
               {user ? (
                 <>
                   <Link href="/account">내 구매내역</Link>

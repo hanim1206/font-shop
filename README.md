@@ -6,8 +6,9 @@
 | 페이지 | 경로 | 하는 일 |
 |---|---|---|
 | 목록 | `/` | 폰트 카드. 견본 문장도 동적 서브셋으로 그 글자만 받아 그림 |
-| 상세 | `/fonts/[slug]` | 입력한 문장을 실시간 미리보기 (산돌식 동적 서브셋) |
-| 결제 | `/checkout/[slug]` | 로그인 필요. 라이선스 받는 분 이름 + EULA·청약철회 배제 동의 + 토스페이 결제창(테스트) |
+| 상세 | `/fonts/[slug]` | 입력한 문장을 실시간 미리보기 (산돌식 동적 서브셋), 라이선스(Desktop/Web) 골라 장바구니 담기 |
+| 장바구니 | `/cart` | 담은 웨이트×라이선스 목록과 합계. 브라우저 localStorage 에 저장 |
+| 결제 | `/checkout` | 로그인 필요. 장바구니 전체를 한 주문으로. 개인/회사(사업자번호), Web 이면 도메인 1개, EULA·청약철회 배제 동의 + 토스페이 결제창(테스트) |
 | 결제완료 | `/checkout/success` | 서버 승인 → 워터마크 파일 생성 → 메일 발송 결과 |
 | 회원가입 / 로그인 | `/signup` `/login` | 이메일(필수) + 비밀번호 8자 이상 |
 | 내 구매내역 | `/account` | 내 주문, 재다운로드 |
@@ -20,14 +21,16 @@
 ```
 상세페이지 ── GET /api/preview?font=&text=  → 입력한 글자만 담은 woff2 (수 KB)
    │
-결제 페이지 (로그인) ── POST /api/orders     금액은 서버 카탈로그, 동의 시각 저장, 메일 = 가입 이메일
+결제 페이지 (로그인) ── POST /api/orders     items=[{slug, license}] → 금액은 서버 카탈로그로 합산, order_items 저장, 동의 시각 저장, 메일 = 가입 이메일
    │  토스 결제창 requestPayment() (토스페이 직행)
    ▼
 /checkout/success ── POST /api/payments/confirm
    │  ① 본인 주문인지  ② 저장 금액 = amount  ③ READY→CONFIRMING 잠금  ④ 토스 승인 API  ⑤ 응답 재확인 → PAID
    ▼
 fulfillOrder()  (lib/fulfill.ts, 주문당 한 번만)
-   │  worker/fontmark.py embed --order-id <주문번호>   → 구매자 전용 TTF
+   │  항목마다 worker/fontmark.py embed --order-id <주문번호> --license-type desktop|web [--domain]
+   │    Desktop → TTF(OTF)   Web → WOFF + WOFF2   (안 보이는 층의 번호는 주문번호 하나로 같다)
+   │  worker/bundle.py → 전부 + LICENSE.txt(라이선스 증서)를 zip 하나로 (메일 링크는 이 zip)
    │  Supabase Storage deliveries 버킷(비공개)에 랜덤 경로로 저장, sha256 기록
    │  다운로드 링크 토큰 발급 (DB엔 해시만)
    ▼  메일 (Resend / 로컬 Mailpit): 링크만, 파일 첨부 없음

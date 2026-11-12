@@ -23,8 +23,16 @@ export default async function AdminOrders() {
             {orders.map((o) => (
               <tr key={o.order_no}>
                 <td>#{o.order_no}<br /><span className="muted">{kst(o.created_at)}</span></td>
-                <td>{o.licensee_name}<br /><span className="muted">{o.customer_email}</span></td>
-                <td>{o.order_name}<br />{o.amount.toLocaleString("ko-KR")}원 {o.method && <span className="muted">· {o.method}</span>}</td>
+                <td>
+                  {o.licensee_name} <span className="muted">({o.licensee_type === "company" ? "회사·단체" : "개인"})</span>
+                  {o.biz_no && <><br /><span className="muted">사업자 {o.biz_no}</span></>}
+                  <br /><span className="muted">{o.customer_email}</span>
+                </td>
+                <td>
+                  {o.order_items.map((i, k) => <div key={k}>{i.item_name} <span className="muted">{i.unit_price.toLocaleString("ko-KR")}원</span></div>)}
+                  {o.web_domain && <div className="muted">Web 도메인: {o.web_domain}</div>}
+                  <strong>{o.amount.toLocaleString("ko-KR")}원</strong> {o.method && <span className="muted">· {o.method}</span>}
+                </td>
                 <td><span className={`badge ${o.status}`}>{o.status}</span>{o.failure && <><br /><span className="error">{o.failure.code}</span></>}</td>
                 <td>{o.order_files.map((f) => <div key={f.id}>{f.filename}<br /><span className="muted">sha256 {f.sha256.slice(0, 12)}…</span></div>)}</td>
                 <td className="muted">
