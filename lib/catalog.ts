@@ -46,7 +46,7 @@ export const PRODUCTS: Product[] = [
     masterFile: "HanimDummyGothic-Bold-1.000.ttf",
     downloadName: "HanimDummyGothic-Bold.ttf",
     price: 38000,
-    sample: "키스의 고유조건은 입술끼리 만나야 하고",
+    sample: "다람쥐 헌 쳇바퀴에 타고파",
     description: "테스트용 더미 폰트입니다. 제목용 고딕 Bold.",
   },
 ];
